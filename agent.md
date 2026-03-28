@@ -51,6 +51,7 @@ explicitly read from or write to the JSON file**. Do not rely on chat history al
 | `VAR_GIT_ENABLED`        | Boolean | `true` if `version_control.enabled` is `true` in config |
 | `VAR_CURRENT_VERSION`    | String  | Current project version (SemVer format, e.g. `1.2.0`) |
 | `VAR_REGRESSION_CHECK`   | String  | `PASS`, `FAIL`, or `WARN` (set at STEP 5.0)            |
+| `VAR_ACTIVE_BACKUP_PATH` | String  | Path to the current backup folder (e.g. `backups/YYYYMMDD_HHMM_TASK_NAME/`) |
 | `VAR_TEST_BASELINE`      | Boolean | `true` if `output/test_playbook.md` was loaded at bootstrap |
 | `VAR_TEST_COUNT`         | Integer | Number of tests in the loaded baseline (0 if no baseline) |
 
@@ -97,7 +98,7 @@ If the agent determines that the fix requires modifying files NOT covered by the
 ### STEP 0: Bootstrap & Rules Loading
 
 1. Update `VAR_SESSION_STEP` to `0` in `session_state.json`.
-2. **Read ALL files in `rules/`** and assimilate them as your operational directives.
+2. **Read ALL files in `rules/` except `rules/git_rules.md`** and assimilate them as your operational directives.
    These are your libraries — treat them with the same authority as this file.
    This includes `rules/testing_rules.md`.
 3. **Test Baseline Loading:**
@@ -112,7 +113,7 @@ If the agent determines that the fix requires modifying files NOT covered by the
 6. **Session Check:** If `session/session_state.json` exists, load it to resume progress.
 7. **Git Integration Check:** If `version_control.enabled` is `true` in `config.json`,
    read and apply `rules/git_rules.md` as operational directives. Set `VAR_GIT_ENABLED`
-   to `true` in `session_state.json`.
+   to `true` in `session_state.json`. **If `false` or absent, set `VAR_GIT_ENABLED` to `false`.**
 
 ### STEP 1: Priority Resolution and Versioning
 
@@ -126,6 +127,7 @@ If the agent determines that the fix requires modifying files NOT covered by the
 
 - Update `VAR_SESSION_STEP` to `2` in `session_state.json`.
 - Present an action plan reading confirmed variables from the session file.
+  Follow the quality standards defined in `rules/design_review_rules.md`.
 - **STOP:** Wait for user "GO" before touching the `output/` folder.
 
 ### STEP 3: Backup Protocol
@@ -133,12 +135,15 @@ If the agent determines that the fix requires modifying files NOT covered by the
 - Update `VAR_SESSION_STEP` to `3` in `session_state.json`.
 - Before modifying any file in `output/`, create a copy in
   `backups/YYYYMMDD_HHMM_[TASK_NAME]/`.
+- Record the backup folder path in `session_state.json` as `VAR_ACTIVE_BACKUP_PATH`.
 - **Pre-Backup Inventory (MANDATORY):** Before starting the backup, generate a
   `backup_manifest.json` inside the backup folder containing:
   - List of ALL files in `output/` with their SHA-256 hash
   - List of all public methods/functions per source file
   - List of all Docker volumes (named and bind mounts) from compose files
   - List of all K8s resources (Deployments, Services, PVCs, ConfigMaps, Secrets, Ingress)
+    *(FAIL enforcement at STEP 5.0 applies only to stateful resources — volumes and PVCs.
+    Removal of stateless K8s resources triggers a WARN.)*
   - List of all exposed ports and endpoints
   - List of all environment variables defined in `.env`, compose, and K8s manifests
 - **Backup Completeness Check:** Verify the backup folder contains ALL files listed in
@@ -166,13 +171,14 @@ If the agent determines that the fix requires modifying files NOT covered by the
   `rules/testing_rules.md` §3.
 
 **5.0. Non-Regression Check (MANDATORY — before build):**
-  - Load `backup_manifest.json` from the active backup.
+  - Load `backup_manifest.json` from `VAR_ACTIVE_BACKUP_PATH`.
   - Also load any `backup_manifest_retry_N.json` files from retry backup folders (if they exist).
   - Compare the current `output/` against the manifest:
     - ❌ **FAIL** if any file listed in the manifest is missing from `output/`.
     - ❌ **FAIL** if any public method/function listed in the manifest was removed without a corresponding entry in the task specification or explicit user approval during this session.
     - ❌ **FAIL** if any Docker volume or K8s PVC listed in the manifest was removed.
     - ❌ **FAIL** if any exposed port or endpoint listed in the manifest was removed.
+    - ⚠️ **WARN** if any stateless K8s resource (Deployments, Services, ConfigMaps, Ingress) listed in the manifest was removed.
     - ⚠️ **WARN** if environment variables listed in the manifest were removed (may be intentional).
   - If any FAIL condition is detected: **STOP** and present the differences to the user. Ask for explicit approval before proceeding.
   - If `output/test_playbook.md` exists from a prior session, verify that ALL tests in it still PASS.
@@ -202,6 +208,7 @@ If the agent determines that the fix requires modifying files NOT covered by the
 
 1. Update `VAR_SESSION_STEP` to `6` in `session_state.json`.
 2. **Notify:** Inform the user of the failure with the full error detail.
+   Follow the Investigation Protocol defined in `rules/debugging_rules.md` before proposing a fix.
 3. **Propose options:**
    - **Retry** — go back to STEP 4 to correct the issue.
      Increment `VAR_RETRY_COUNT`. If `VAR_RETRY_COUNT` ≥ 3, do not offer Retry.
@@ -222,8 +229,9 @@ If the agent determines that the fix requires modifying files NOT covered by the
 6. **Changelog:** Record the activity in `changelog.md`.
 7. **Git Release (if `VAR_GIT_ENABLED`):**
    - Merge the working branch into `develop` (or `main` if no `develop` branch).
+     If the project has CI/CD configured, this should be done via Pull Request per `rules/git_rules.md`.
    - Determine the new version based on commit types (see `rules/git_rules.md` §3).
-   - Create an annotated git tag: `v<MAJOR>.<MINOR>.<PATCH>`.
+   - If `version_control.auto_tag` is `true`, create an annotated git tag: `v<MAJOR>.<MINOR>.<PATCH>`.
    - Push branch, tag, and changes to remote.
    - Update `VAR_CURRENT_VERSION` in `session_state.json`.
 
