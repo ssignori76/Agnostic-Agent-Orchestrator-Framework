@@ -1,0 +1,871 @@
+➜  output find .  -exec cat {} \;
+cat: .: Is a directory
+cat: ./be: Is a directory
+# Build Stage
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline
+COPY src ./src
+RUN mvn package -DskipTests
+
+# Runtime Stage
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/target/vulnerable-app-0.0.1-SNAPSHOT.jar app.jar
+
+# Create a non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+        <modelVersion>4.0.0</modelVersion>
+        <parent>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-parent</artifactId>
+                <version>3.4.1</version>
+                <relativePath/>
+        </parent>
+        <groupId>com.example</groupId>
+        <artifactId>vulnerable-app</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <name>vulnerable-app</name>
+        <description>Vulnerable 3-Layer App Backend</description>
+        <properties>
+                <java.version>21</java.version>
+        </properties>
+        <dependencies>
+                <dependency>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-web</artifactId>
+                </dependency>
+                <dependency>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-data-jpa</artifactId>
+                </dependency>
+                <dependency>
+                        <groupId>com.mysql</groupId>
+                        <artifactId>mysql-connector-j</artifactId>
+                        <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-test</artifactId>
+                        <scope>test</scope>
+                </dependency>
+        </dependencies>
+
+        <build>
+                <plugins>
+                        <plugin>
+                                <groupId>org.springframework.boot</groupId>
+                                <artifactId>spring-boot-maven-plugin</artifactId>
+                        </plugin>
+                </plugins>
+        </build>
+</project>
+cat: ./be/src: Is a directory
+cat: ./be/src/test: Is a directory
+cat: ./be/src/test/java: Is a directory
+cat: ./be/src/test/java/com: Is a directory
+cat: ./be/src/test/java/com/example: Is a directory
+cat: ./be/src/test/java/com/example/vulnerableapp: Is a directory
+package com.example.vulnerableapp;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+public class UserControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    public void testRegisterUser() throws Exception {
+        String userJson = "{\"username\":\"testuser\", \"password\":\"testpass\"}";
+
+        mockMvc.perform(post("/api/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(userJson))
+                .andExpect(status().isOk());
+    }
+}
+cat: ./be/src/main: Is a directory
+cat: ./be/src/main/resources: Is a directory
+spring.application.name=vulnerable-app
+
+# Database Configuration
+spring.datasource.url=${SPRING_DATASOURCE_URL}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+# JPA/Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+
+# Logging
+logging.level.org.springframework.web=DEBUG
+logging.level.org.hibernate.SQL=DEBUG
+
+# Server
+server.port=8080
+cat: ./be/src/main/java: Is a directory
+cat: ./be/src/main/java/com: Is a directory
+cat: ./be/src/main/java/com/example: Is a directory
+cat: ./be/src/main/java/com/example/vulnerableapp: Is a directory
+package com.example.vulnerableapp;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/admin")
+@CrossOrigin(origins = "http://localhost", allowCredentials = "true")
+public class AdminController {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    private void checkAdmin(String userId) {
+        if (userId == null) throw new RuntimeException("Not logged in");
+        User user = userRepository.findById(Long.parseLong(userId)).orElseThrow();
+        if (!"ADMIN".equals(user.getRole())) {
+            throw new RuntimeException("Admin access required");
+        }
+    }
+
+    @GetMapping("/users")
+    public List<User> getAllUsers(@CookieValue(name = "user_id", required = false) String userId) {
+        checkAdmin(userId);
+        return userRepository.findAll();
+    }
+
+    @GetMapping("/orders")
+    public List<Order> getAllOrders(@CookieValue(name = "user_id", required = false) String userId) {
+        checkAdmin(userId);
+        return orderRepository.findAll();
+    }
+}
+package com.example.vulnerableapp;
+
+import jakarta.persistence.*;
+import java.util.Date;
+
+@Entity
+@Table(name = "orders")
+public class Order {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private Long userId;
+
+    @Column(nullable = false)
+    private String status = "PENDING"; // PENDING, COMPLETED
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdAt = new Date();
+
+    public Order() {}
+    public Order(Long userId) { this.userId = userId; }
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+}
+package com.example.vulnerableapp;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+public interface OrderRepository extends JpaRepository<Order, Long> {
+    List<Order> findByUserId(Long userId);
+}
+package com.example.vulnerableapp;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/orders")
+@CrossOrigin(origins = "http://localhost", allowCredentials = "true")
+public class OrderController {
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @PostMapping("/create")
+    public Order createOrder(@CookieValue(name = "user_id", required = false) String userId) {
+        if (userId == null) throw new RuntimeException("Not logged in");
+        Order order = new Order(Long.parseLong(userId));
+        return orderRepository.save(order);
+    }
+
+    @PostMapping("/{id}/confirm")
+    public Order confirmOrder(@PathVariable Long id, @CookieValue(name = "user_id", required = false) String userId) {
+        if (userId == null) throw new RuntimeException("Not logged in");
+        Order order = orderRepository.findById(id).orElseThrow();
+        if (!order.getUserId().equals(Long.parseLong(userId))) {
+            throw new RuntimeException("Unauthorized");
+        }
+        order.setStatus("COMPLETED");
+        return orderRepository.save(order);
+    }
+
+    @GetMapping("/history")
+    public List<Order> getHistory(@CookieValue(name = "user_id", required = false) String userId) {
+        if (userId == null) throw new RuntimeException("Not logged in");
+        return orderRepository.findByUserId(Long.parseLong(userId));
+    }
+}
+package com.example.vulnerableapp;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true, nullable = false)
+    private String username;
+
+    @Column(nullable = false)
+    private String password;
+
+    private String role = "USER";
+
+    public User() {}
+
+    public User(String username, String password) {
+        this.username = username;
+        this.password = password;
+    }
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+}
+package com.example.vulnerableapp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@SpringBootApplication
+@RestController
+public class VulnerableAppApplication {
+
+        public static void main(String[] args) {
+                SpringApplication.run(VulnerableAppApplication.class, args);
+        }
+
+        @GetMapping("/health")
+        public String health() {
+                return "OK";
+        }
+}
+package com.example.vulnerableapp;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByUsername(String username);
+}
+package com.example.vulnerableapp;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ItemRepository extends JpaRepository<Item, Long> {
+}
+package com.example.vulnerableapp;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/items")
+@CrossOrigin(origins = "http://localhost")
+public class ItemController {
+
+    @Autowired
+    private ItemRepository itemRepository;
+
+    @GetMapping
+    public List<Item> getAllItems() {
+        return itemRepository.findAll();
+    }
+}
+package com.example.vulnerableapp;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api")
+@CrossOrigin(origins = "http://localhost", allowCredentials = "true")
+public class UserController {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @PostMapping("/register")
+    public String register(@RequestBody User user) {
+        userRepository.save(user);
+        return "User registered successfully";
+    }
+
+    @PostMapping("/login")
+    public String login(@RequestBody Map<String, String> credentials, HttpServletResponse response) {
+        String username = credentials.get("username");
+        String password = credentials.get("password");
+
+        Optional<User> user = userRepository.findByUsername(username);
+        if (user.isPresent() && user.get().getPassword().equals(password)) {
+            Cookie cookie = new Cookie("user_id", user.get().getId().toString());
+            cookie.setPath("/");
+            cookie.setMaxAge(3600); // 1 hour
+            response.addCookie(cookie);
+            return "Login successful";
+        } else {
+            throw new RuntimeException("Invalid credentials");
+        }
+    }
+
+    @GetMapping("/me")
+    public User me(@CookieValue(name = "user_id", required = false) String userId) {
+        if (userId == null) throw new RuntimeException("Not logged in");
+        return userRepository.findById(Long.parseLong(userId)).orElseThrow();
+    }
+}
+package com.example.vulnerableapp;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "items")
+public class Item {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    private Double price;
+    private String description;
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public Double getPrice() { return price; }
+    public void setPrice(Double price) { this.price = price; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+}
+cat: ./fe: Is a directory
+FROM httpd:2.4-alpine
+
+# Copy public files to Apache htdocs
+COPY public/ /usr/local/apache2/htdocs/
+
+# Create a non-root user (optional for httpd, but good practice)
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /usr/local/apache2/htdocs/
+
+# We'll run as root for now as httpd:2.4-alpine expects it for port 80
+# and it's minimalist for this testbed.
+
+EXPOSE 80
+cat: ./fe/public: Is a directory
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Minimal Shop</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .item { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Minimalist Shop</h1>
+    <div id="auth-section">
+        <button id="show-login">Login</button>
+        <button id="show-register">Register</button>
+    </div>
+    <div id="user-info" class="hidden">
+        <p>Logged in as: <span id="username-display"></span></p>
+        <button id="logout-btn">Logout</button>
+        <button id="view-history">View History</button>
+    </div>
+
+    <div id="login-form" class="hidden">
+        <h3>Login</h3>
+        <input type="text" id="login-username" placeholder="Username"><br>
+        <input type="password" id="login-password" placeholder="Password"><br>
+        <button id="login-btn">Login</button>
+    </div>
+
+    <div id="register-form" class="hidden">
+        <h3>Register</h3>
+        <input type="text" id="reg-username" placeholder="Username"><br>
+        <input type="password" id="reg-password" placeholder="Password"><br>
+        <button id="reg-btn">Register</button>
+    </div>
+
+    <h2>Items for Sale</h2>
+    <div id="items-container"></div>
+
+    <div id="cart-section" class="hidden">
+        <h2>Your Cart</h2>
+        <div id="cart-items"></div>
+        <button id="confirm-purchase">Confirm Purchase</button>
+    </div>
+
+    <div id="history-section" class="hidden">
+        <h2>Order History</h2>
+        <div id="history-list"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+    <h1>Admin Panel</h1>
+    <a href="/">Back to Shop</a>
+
+    <h2>All Users</h2>
+    <table id="users-table">
+        <thead>
+            <tr><th>ID</th><th>Username</th><th>Role</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <h2>All Orders</h2>
+    <table id="orders-table">
+        <thead>
+            <tr><th>ID</th><th>User ID</th><th>Status</th><th>Date</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        const API_URL = 'http://localhost:8080';
+        async function loadAdminData() {
+            try {
+                const userRes = await fetch(`${API_URL}/api/admin/users`, { credentials: 'include' });
+                if (!userRes.ok) throw new Error('Unauthorized');
+                const users = await userRes.json();
+                const userBody = document.querySelector('#users-table tbody');
+                userBody.innerHTML = users.map(u => `<tr><td>${u.id}</td><td>${u.username}</td><td>${u.role}</td></tr>`).join('');
+
+                const orderRes = await fetch(`${API_URL}/api/admin/orders`, { credentials: 'include' });
+                const orders = await orderRes.json();
+                const orderBody = document.querySelector('#orders-table tbody');
+                orderBody.innerHTML = orders.map(o => `<tr><td>${o.id}</td><td>${o.userId}</td><td>${o.status}</td><td>${o.createdAt}</td></tr>`).join('');
+            } catch (e) {
+                alert('Admin access required. Please login as admin.');
+                window.location.href = '/';
+            }
+        }
+        loadAdminData();
+    </script>
+</body>
+</html>
+// Minimalist JS for Vulnerable Shop
+const API_URL = 'http://localhost:8080';
+
+// Global State
+let currentUser = null;
+let cart = [];
+
+// DOM Elements
+const itemsContainer = document.getElementById('items-container');
+const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
+const authSection = document.getElementById('auth-section');
+const userInfo = document.getElementById('user-info');
+const usernameDisplay = document.getElementById('username-display');
+const historySection = document.getElementById('history-section');
+const historyList = document.getElementById('history-list');
+
+// Event Listeners
+document.getElementById('show-login').onclick = () => { loginForm.classList.remove('hidden'); registerForm.classList.add('hidden'); };
+document.getElementById('show-register').onclick = () => { registerForm.classList.remove('hidden'); loginForm.classList.add('hidden'); };
+document.getElementById('login-btn').onclick = login;
+document.getElementById('reg-btn').onclick = register;
+document.getElementById('logout-btn').onclick = logout;
+document.getElementById('view-history').onclick = loadHistory;
+document.getElementById('confirm-purchase').onclick = confirmPurchase;
+
+// Init
+async function init() {
+    await checkSession();
+    await loadItems();
+}
+
+async function checkSession() {
+    try {
+        const res = await fetch(`${API_URL}/api/me`, { credentials: 'include' });
+        if (res.ok) {
+            currentUser = await res.json();
+            showLoggedIn();
+        }
+    } catch (e) { console.log('Not logged in'); }
+}
+
+function showLoggedIn() {
+    authSection.classList.add('hidden');
+    loginForm.classList.add('hidden');
+    registerForm.classList.add('hidden');
+    userInfo.classList.remove('hidden');
+    usernameDisplay.innerText = currentUser.username;
+}
+
+async function login() {
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+    const res = await fetch(`${API_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+        credentials: 'include'
+    });
+    if (res.ok) {
+        alert('Logged in!');
+        location.reload();
+    } else alert('Login failed');
+}
+
+async function register() {
+    const username = document.getElementById('reg-username').value;
+    const password = document.getElementById('reg-password').value;
+    const res = await fetch(`${API_URL}/api/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+    if (res.ok) {
+        alert('Registered! Now please login.');
+        registerForm.classList.add('hidden');
+    } else alert('Registration failed');
+}
+
+function logout() {
+    document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    location.reload();
+}
+
+async function loadItems() {
+    try {
+        const res = await fetch(`${API_URL}/api/items`);
+        const items = await res.json();
+        itemsContainer.innerHTML = '';
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerHTML = `
+                <h3>${item.name}</h3>
+                <p>Price: $${item.price}</p>
+                <button onclick="addToCart(${item.id}, '${item.name}')">Buy</button>
+            `;
+            itemsContainer.appendChild(div);
+        });
+    } catch (e) { itemsContainer.innerHTML = 'Error loading items.'; }
+}
+
+window.addToCart = async (id, name) => {
+    if (!currentUser) {
+        alert('You must be logged in to buy items!');
+        return;
+    }
+    // Phase 1: Creation
+    const res = await fetch(`${API_URL}/api/orders/create`, { method: 'POST', credentials: 'include' });
+    if (res.ok) {
+        const order = await res.json();
+        cart.push(order);
+        renderCart();
+    } else alert('Failed to create order');
+};
+
+function renderCart() {
+    const cartSection = document.getElementById('cart-section');
+    const cartItems = document.getElementById('cart-items');
+    cartSection.classList.remove('hidden');
+    cartItems.innerHTML = cart.map(o => `<p>Order #${o.id} - Status: ${o.status}</p>`).join('');
+}
+
+async function confirmPurchase() {
+    // Phase 2: Confirmation
+    for (let order of cart) {
+        if (order.status === 'PENDING') {
+            await fetch(`${API_URL}/api/orders/${order.id}/confirm`, { method: 'POST', credentials: 'include' });
+        }
+    }
+    alert('Purchase confirmed!');
+    cart = [];
+    document.getElementById('cart-section').classList.add('hidden');
+    loadHistory();
+}
+
+async function loadHistory() {
+    const res = await fetch(`${API_URL}/api/orders/history`, { credentials: 'include' });
+    if (res.ok) {
+        const orders = await res.json();
+        historySection.classList.remove('hidden');
+        historyList.innerHTML = orders.map(o => `<p>Order #${o.id} - Status: ${o.status} - Date: ${o.createdAt}</p>`).join('');
+    }
+}
+
+init();
+{
+  "project_name": "vulnerable-3-layer-app",
+  "version": "0.1.0",
+  "deployed_at": "2026-03-28T21:06:00Z",
+  "stack": {
+    "frontend": "Apache 2.4",
+    "backend": "Spring Boot 3.4 (Java 21)",
+    "database": "MySQL 8.0"
+  },
+  "services": [
+    {"name": "frontend", "port": 80},
+    {"name": "backend", "port": 8080},
+    {"name": "database", "port": 3306}
+  ],
+  "validation_result": "PASS"
+}
+# Test Results: Vulnerable 3-Layer App
+
+- **Date:** 2026-03-28
+- **Environment:** Docker Compose (Apache, Spring Boot, MySQL)
+- **Status:** PASS
+
+## Results Table
+
+| Test ID | Category | Service | Input/Action | Expected Result | Actual Result | Status |
+|---|---|---|---|---|---|---|
+| TC-HEALTH | Health | Backend | GET /health | OK | OK | PASS |
+| TC-ITEMS | Data | Backend | GET /api/items | JSON list (3) | JSON list (3) | PASS |
+| TC-REG | Auth | Backend | POST /api/register | Success message | Success message | PASS |
+| TC-LOGIN | Auth | Backend | POST /api/login | HTTP 200 + Cookie | HTTP 200 + Cookie | PASS |
+| TC-ORDER-CREATE | Order | Backend | POST /api/orders/create | PENDING Order | PENDING Order | PASS |
+| TC-ORDER-CONFIRM | Order | Backend | POST /api/orders/1/confirm | COMPLETED Order | COMPLETED Order | PASS |
+| TC-ADMIN-DENY | Auth | Backend | GET /api/admin/users (u2) | Status 500 (Error) | Status 500 (Error) | PASS |
+| TC-ADMIN-ALLOW | Auth | Backend | GET /api/admin/users (u1) | JSON list of users | JSON list of users | PASS |
+| TC-FE-UP | Health | Frontend | GET / | HTML Content | HTML Content | PASS |
+
+## Summary
+- Total tests: 9
+- Passed: 9
+- Failed: 0
+- Warnings: 0
+
+## Failure Details
+None.
+cat: ./db: Is a directory
+-- Initial SQL Script for 3-Layer Application
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'USER'
+);
+
+CREATE TABLE IF NOT EXISTS items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    description TEXT
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    item_id INT NOT NULL,
+    quantity INT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (item_id) REFERENCES items(id)
+);
+
+-- Seed Data
+INSERT INTO items (name, price, description) VALUES
+('Vulnerable Shield', 99.99, 'A shield that looks strong but has many holes.'),
+('Insecure Sword', 150.00, 'A sword with a handle that tends to snap.'),
+('Leaky Potion', 25.50, 'A potion that heals you but leaks some of your secrets.');
+
+-- Initial Admin
+INSERT INTO users (username, password, role) VALUES ('admin', 'admin123', 'ADMIN');
+# Docker Compose for Vulnerable 3-Layer App
+version: '3.8'
+
+services:
+  database:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: vulnerable_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend:
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://database:3306/vulnerable_db?allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  db_data:
+# Test Playbook: Vulnerable 3-Layer App
+
+## Prerequisites
+- Docker and Docker Compose installed and running.
+
+## Test Catalog
+
+### 1. Health Check
+- **ID:** TC-HEALTH
+- **Pre-conditions:** All containers running.
+- **Command:** `curl -f http://localhost:8080/health`
+- **Expected Output:** `OK`
+
+### 2. Item Listing
+- **ID:** TC-ITEMS
+- **Pre-conditions:** Backend and DB running.
+- **Command:** `curl -s http://localhost:8080/api/items`
+- **Expected Output:** JSON list containing 3 items.
+
+### 3. User Registration
+- **ID:** TC-REG
+- **Pre-conditions:** Backend and DB running.
+- **Command:** `curl -s -X POST -H "Content-Type: application/json" -d '{"username":"testuser", "password":"testpassword"}' http://localhost:8080/api/register`
+- **Expected Output:** `User registered successfully`
+
+### 4. User Login
+- **ID:** TC-LOGIN
+- **Pre-conditions:** User registered.
+- **Command:** `curl -s -i -X POST -H "Content-Type: application/json" -d '{"username":"testuser", "password":"testpassword"}' http://localhost:8080/api/login`
+- **Expected Output:** HTTP 200 and a `Set-Cookie: user_id=...` header.
+
+### 5. Order Creation (Phase 1)
+- **ID:** TC-ORDER-CREATE
+- **Pre-conditions:** User logged in (cookie set).
+- **Command:** `curl -s -b "user_id=1" -X POST http://localhost:8080/api/orders/create`
+- **Expected Output:** JSON Order object with status `PENDING`.
+
+### 6. Order Confirmation (Phase 2)
+- **ID:** TC-ORDER-CONFIRM
+- **Pre-conditions:** Order created.
+- **Command:** `curl -s -b "user_id=1" -X POST http://localhost:8080/api/orders/1/confirm`
+- **Expected Output:** JSON Order object with status `COMPLETED`.
+
+### 7. Admin Access Control (Denied)
+- **ID:** TC-ADMIN-DENY
+- **Pre-conditions:** User logged in (not admin).
+- **Command:** `curl -s -b "user_id=2" http://localhost:8080/api/admin/users`
+- **Expected Output:** Error message / access denied.
+
+### 8. Admin Access Control (Allowed)
+- **ID:** TC-ADMIN-ALLOW
+- **Pre-conditions:** Admin logged in (user_id=1 if admin is id 1).
+- **Command:** `curl -s -b "user_id=1" http://localhost:8080/api/admin/users`
+- **Expected Output:** JSON list of users.
+
+## Automated Testing
+Run `./test_scripts.sh` (if available) or execute the commands above manually.
+➜  output
