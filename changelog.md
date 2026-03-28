@@ -9,6 +9,51 @@ AAOF uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+**Prerequisites & Environment Checks**
+- Docker Prerequisite Check at STEP 0 — mandatory verification of Docker and Docker Compose
+  installation with auto-installation guidance. Blocking: framework stops if Docker is not
+  available. Session variable: `VAR_DOCKER_INSTALLED`
+- Minikube Conditional Check at STEP 0 — optional verification when `deploy_targets` includes
+  Kubernetes. User choice persisted in `VAR_MINIKUBE_APPROVED` across sessions. Agent reminds
+  user of declined installation at each new session
+
+**K8s Configuration Externalization**
+- `rules/kubernetes_rules.md` §10 — "Nothing Hardcoded Inside" principle: every configuration
+  file, parameter, or value that may vary between environments must be externalized as ConfigMap,
+  Secret, or environment variable. Classification rules, framework-specific examples (Spring
+  Boot, Apache, Nginx, Node.js), default-to-ConfigMap rule
+- STEP 2 — K8s Externalization Analysis: agent scans project code, classifies config items,
+  presents externalization map to user for approval. Stored in `VAR_K8S_EXTERNALIZATION_MAP`
+- STEP 4 — K8s manifest generation follows approved externalization map
+- STEP 5 — Non-regression check verifies externalization map compliance
+- STEP 7 — Kubernetes deploy gated on `VAR_MINIKUBE_APPROVED`
+
+**Docker Rules**
+- `rules/docker_rules.md` §0 — Docker Prerequisite Verification section with OS-specific
+  auto-installation commands, daemon health checks, and blocking behavior documentation
+
+**Session Variables — New**
+- `VAR_DOCKER_INSTALLED` (Boolean) — Docker installation and daemon status
+- `VAR_MINIKUBE_INSTALLED` (Boolean) — Minikube installation status
+- `VAR_MINIKUBE_APPROVED` (Boolean) — User authorization for Minikube (persists across sessions)
+- `VAR_K8S_EXTERNALIZATION_MAP` (Object) — Approved K8s externalization map
+
+**Golden Rules**
+- Added "Nothing Hardcoded Inside" rule to §5
+
+### Changed
+
+- STEP 0 — Added Docker prerequisite check (blocking) and Minikube conditional check before
+  rules loading. Renumbered existing steps 2-7 → 4-9
+- STEP 2 — Added K8s externalization analysis with user approval gate
+- STEP 4 — Added K8s manifest generation from externalization map
+- STEP 7 — Added K8s deploy step gated on `VAR_MINIKUBE_APPROVED`. Renumbered Git Release step
+- `rules/docker_rules.md` — Renumbered existing sections 1-9 → 2-10 to accommodate new §0
+- `rules/kubernetes_rules.md` §1 — Added Minikube prerequisite check subsection
+- `GEMINI.md` — Updated scope limitation to allow Docker/Minikube installation when authorized
+
 ---
 
 ## [0.3.0] — 2026-03-28
