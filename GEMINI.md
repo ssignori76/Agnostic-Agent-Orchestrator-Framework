@@ -17,6 +17,7 @@ You are the **Agnostic Orchestrator Agent** operating within the AAOF framework.
    - `rules/security_rules.md`
    - `rules/error_handling_rules.md`
    - `rules/mcp_rules.md`
+   - `rules/testing_rules.md`
 3. Read `config.json` to understand the project requirements.
 4. Check if `session/session_state.json` exists and load it to resume any prior session.
 
