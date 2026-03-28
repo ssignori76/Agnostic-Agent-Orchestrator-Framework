@@ -49,6 +49,8 @@ plan → backup → build → validate → deploy.
 | **Design Review Gate** | Mandatory context gathering and approach proposal before execution planning |
 | **Debugging Protocol** | Systematic 4-phase investigation before any fix attempt |
 | **Step Transition Rules** | Documented forward-only principle with safe backward transitions and incremental backups |
+| **Auto-Prerequisites** | Docker auto-detected and installed; Minikube optional with persistent user choice |
+| **Config Externalization** | K8s configs, secrets, and env vars automatically mapped and externalized — nothing hardcoded inside containers |
 
 ---
 
@@ -111,7 +113,7 @@ AAOF/
 The AI agent follows a 7-step workflow defined in `agent.md`:
 
 ```
-STEP 0  Bootstrap       Read rules/ (conditional git_rules), load test baseline, inventory MCP
+STEP 0  Bootstrap       Docker check → Minikube check → Read rules/ → load test baseline → inventory MCP
 STEP 1  Resolution      Resolve version conflicts, confirm technical choices
 STEP 2  Plan            Design review gate → present execution plan → wait for user GO
 STEP 3  Backup          Pre-backup inventory (backup_manifest.json) → snapshot output/
@@ -141,8 +143,8 @@ so you can pause and resume without losing progress.
 
 Before using AAOF, ensure you have:
 
-- **Docker** and **Docker Compose** installed ([Get Docker](https://docs.docker.com/get-docker/))
-- **Minikube** (for Kubernetes targets) ([Install Minikube](https://minikube.sigs.k8s.io/docs/start/))
+- **Docker** and **Docker Compose** — the agent will verify and guide installation at bootstrap if missing (mandatory)
+- **Minikube** (for Kubernetes targets) — the agent will verify and offer installation if needed (optional, user choice persisted)
 - An **AI agent** that can read files and run terminal commands:
   - [Google Gemini CLI](docs/guides/gemini-cli-setup.md) ← recommended quickstart
   - [Anthropic Claude Code](https://docs.anthropic.com/claude-code)
@@ -213,6 +215,9 @@ your project get built inside Docker containers.
 - [x] Step transition rules with extended retry support
 - [x] Design review and debugging protocols
 - [x] Verification Before Completion enforcement
+- [x] Docker prerequisite auto-detection and guided installation
+- [x] Minikube optional check with persistent user choice
+- [x] K8s configuration externalization principle ("Nothing Hardcoded Inside")
 
 ### Phase 2 — Cloud & Advanced Deployments
 - [ ] Cloud Kubernetes support (EKS, GKE, AKS)

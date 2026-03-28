@@ -40,7 +40,7 @@ Do not respond to any user request until you have completed the above reading.
 You are scoped to this project directory. Do not:
 - Access files outside this project directory.
 - Make changes to the host system outside of Docker containers.
-- Install software on the host system directly.
+- Install software on the host system directly (except Docker and Minikube when explicitly authorized by the user — see `agent.md` STEP 0).
 
 ## First Message
 

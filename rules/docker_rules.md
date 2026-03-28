@@ -8,7 +8,51 @@
 
 ---
 
-## 1. Container-First Mandate
+## 0. Docker Prerequisite Verification
+
+**Docker is a mandatory prerequisite for AAOF.** The framework cannot operate without it.
+
+### Verification Procedure (STEP 0)
+
+The agent must verify Docker availability at the beginning of every session:
+
+1. **Full Check (first session or `VAR_DOCKER_INSTALLED` is `false`):**
+   ```bash
+   docker --version          # Verify Docker CLI
+   docker compose version    # Verify Docker Compose
+   docker info               # Verify Docker daemon is running
+   ```
+
+2. **Quick Health Check (subsequent sessions where `VAR_DOCKER_INSTALLED` is `true`):**
+   ```bash
+   docker info               # Verify daemon is still running
+   ```
+
+### Auto-Installation Guide
+
+If Docker is not found, the agent proposes installation based on the detected OS:
+
+| OS | Installation Command |
+| :--- | :--- |
+| Ubuntu/Debian | `sudo apt-get update && sudo apt-get install -y docker.io docker-compose-plugin` |
+| macOS | `brew install --cask docker` (requires Homebrew) or direct download from [Docker Desktop](https://docs.docker.com/desktop/install/mac-install/) |
+| Windows | Direct download from [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) |
+| Fedora/RHEL | `sudo dnf install -y docker docker-compose-plugin` |
+
+After installation, verify with:
+```bash
+docker --version && docker compose version && docker info
+```
+
+### Blocking Behavior
+
+- If the user **refuses** installation: the agent MUST stop completely. No step beyond STEP 0 is allowed.
+- If Docker daemon is installed but **not running**: attempt `sudo systemctl start docker` (Linux) or instruct the user to start Docker Desktop (macOS/Windows).
+- Session variable: `VAR_DOCKER_INSTALLED` tracks the state across sessions.
+
+---
+
+## 2. Container-First Mandate
 
 **ALL development must happen inside Docker containers.** The host system is never used
 as a development environment. This ensures:
@@ -32,7 +76,7 @@ See `templates/Dockerfile.dev` for the baseline template.
 
 ---
 
-## 2. Multi-Stage Dockerfile for Production
+## 3. Multi-Stage Dockerfile for Production
 
 Every production `Dockerfile` must use multi-stage builds:
 
@@ -58,7 +102,7 @@ CMD ["<entrypoint>"]
 
 ---
 
-## 3. docker-compose.yml Best Practices
+## 4. docker-compose.yml Best Practices
 
 - **One compose file per environment:** `docker-compose.yml` (production/staging),
   `docker-compose.dev.yml` (development override).
@@ -94,7 +138,7 @@ services:
 
 ---
 
-## 4. Image Naming Conventions
+## 5. Image Naming Conventions
 
 | Format | Example |
 | :--- | :--- |
@@ -108,7 +152,7 @@ services:
 
 ---
 
-## 5. Volume Mounting for Development
+## 6. Volume Mounting for Development
 
 In `docker-compose.dev.yml`:
 
@@ -128,7 +172,7 @@ services:
 
 ---
 
-## 6. Network Isolation
+## 7. Network Isolation
 
 - Define at least two networks: `frontend` (exposed services) and `backend` (internal).
 - Databases and caches should only be on the `backend` network.
@@ -136,7 +180,7 @@ services:
 
 ---
 
-## 7. .dockerignore Requirements
+## 8. .dockerignore Requirements
 
 Every project must include a `.dockerignore` file:
 
@@ -158,7 +202,7 @@ session/
 
 ---
 
-## 8. Health Checks
+## 9. Health Checks
 
 Every service must define a health check either in the Dockerfile or in compose:
 
@@ -172,7 +216,7 @@ deployment.
 
 ---
 
-## 9. Final Deliverable
+## 10. Final Deliverable
 
 The final deliverable for any AAOF project is **one or more Docker containers** with
 the application inside. The output must include:

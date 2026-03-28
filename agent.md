@@ -54,6 +54,10 @@ explicitly read from or write to the JSON file**. Do not rely on chat history al
 | `VAR_ACTIVE_BACKUP_PATH` | String  | Path to the current backup folder (e.g. `backups/YYYYMMDD_HHMM_TASK_NAME/`) |
 | `VAR_TEST_BASELINE`      | Boolean | `true` if `output/test_playbook.md` was loaded at bootstrap |
 | `VAR_TEST_COUNT`         | Integer | Number of tests in the loaded baseline (0 if no baseline) |
+| `VAR_DOCKER_INSTALLED`   | Boolean | `true` if Docker and Docker Compose are installed and functional |
+| `VAR_MINIKUBE_INSTALLED` | Boolean | `true` if Minikube is installed and functional |
+| `VAR_MINIKUBE_APPROVED`  | Boolean | `true` if the user has authorized Minikube installation/usage. Persists across sessions |
+| `VAR_K8S_EXTERNALIZATION_MAP` | Object | Map of externalized configurations (ConfigMaps, Secrets, env vars) approved by the user at STEP 2 |
 
 ---
 
@@ -98,20 +102,46 @@ If the agent determines that the fix requires modifying files NOT covered by the
 ### STEP 0: Bootstrap & Rules Loading
 
 1. Update `VAR_SESSION_STEP` to `0` in `session_state.json`.
-2. **Read ALL files in `rules/` except `rules/git_rules.md`** and assimilate them as your operational directives.
+2. **Docker Prerequisite Check (MANDATORY — BLOCKING):**
+   - Execute `docker --version` and `docker compose version` to verify Docker is installed.
+   - If Docker is found and functional:
+     - Set `VAR_DOCKER_INSTALLED` to `true` in `session_state.json`.
+     - Quick health check: run `docker info` to verify the Docker daemon is running.
+       If the daemon is not running, inform the user and attempt to start it.
+   - If Docker is NOT found:
+     - Inform the user: *"Docker is not installed. Docker is a mandatory prerequisite for AAOF — the framework cannot operate without it."*
+     - Propose automatic installation with OS-appropriate instructions (detect OS first).
+     - If the user approves → guide installation, verify with `docker --version`, set `VAR_DOCKER_INSTALLED` to `true`.
+     - If the user refuses → **⛔ FULL STOP.** Set `VAR_DOCKER_INSTALLED` to `false`. Display: *"Docker is a mandatory prerequisite. The framework cannot proceed without Docker. Please install Docker and restart the session."* Do NOT proceed to any subsequent step.
+   - On subsequent sessions: if `VAR_DOCKER_INSTALLED` is already `true`, perform only a quick health check (`docker info`) instead of the full installation check.
+
+3. **Minikube Check (CONDITIONAL — only if `deploy_targets` includes `"K8S"` or `"KUBERNETES"` or `"MINIKUBE"`):**
+   - Execute `minikube version` to verify Minikube is installed.
+   - If Minikube is found:
+     - Set `VAR_MINIKUBE_INSTALLED` to `true` and `VAR_MINIKUBE_APPROVED` to `true` in `session_state.json`.
+   - If Minikube is NOT found:
+     - Check `VAR_MINIKUBE_APPROVED` from the existing session state.
+     - If `VAR_MINIKUBE_APPROVED` was previously set to `false`:
+       - Remind the user: *"Minikube was previously declined. Kubernetes deployment remains disabled. Would you like to reconsider?"*
+     - Otherwise, ask: *"Minikube is not installed but your deploy targets include Kubernetes. Would you like me to install it?"*
+     - If the user approves → guide installation, verify with `minikube version`, set both variables to `true`.
+     - If the user refuses → Set `VAR_MINIKUBE_INSTALLED` to `false` and `VAR_MINIKUBE_APPROVED` to `false`. Display: *"Kubernetes deployment is disabled. I will proceed with Docker-only deployment. You can enable Kubernetes at any time by authorizing Minikube installation."* Continue with the rest of STEP 0.
+   - If `deploy_targets` does NOT include Kubernetes: set both `VAR_MINIKUBE_INSTALLED` and `VAR_MINIKUBE_APPROVED` to `false` and skip this check.
+
+4. **Read ALL files in `rules/` except `rules/git_rules.md`** and assimilate them as your operational directives.
    These are your libraries — treat them with the same authority as this file.
    This includes `rules/testing_rules.md`.
-3. **Test Baseline Loading:**
+5. **Test Baseline Loading:**
    - If `output/test_playbook.md` exists:
      - Read it as the regression test baseline.
      - Count the total number of tests defined in it.
      - Set `VAR_TEST_BASELINE` to `true` and `VAR_TEST_COUNT` to the test count
        in `session_state.json`.
    - If it does not exist, set `VAR_TEST_BASELINE` to `false` and `VAR_TEST_COUNT` to `0`.
-4. Inventory your available MCP servers; record them in `VAR_AVAILABLE_MCP`.
-5. Read `config.json` and the optional `output/deployed_state.json`.
-6. **Session Check:** If `session/session_state.json` exists, load it to resume progress.
-7. **Git Integration Check:** If `version_control.enabled` is `true` in `config.json`,
+6. Inventory your available MCP servers; record them in `VAR_AVAILABLE_MCP`.
+7. Read `config.json` and the optional `output/deployed_state.json`.
+8. **Session Check:** If `session/session_state.json` exists, load it to resume progress.
+9. **Git Integration Check:** If `version_control.enabled` is `true` in `config.json`,
    read and apply `rules/git_rules.md` as operational directives. Set `VAR_GIT_ENABLED`
    to `true` in `session_state.json`. **If `false` or absent, set `VAR_GIT_ENABLED` to `false`.**
 
@@ -128,6 +158,25 @@ If the agent determines that the fix requires modifying files NOT covered by the
 - Update `VAR_SESSION_STEP` to `2` in `session_state.json`.
 - Present an action plan reading confirmed variables from the session file.
   Follow the quality standards defined in `rules/design_review_rules.md`.
+- **K8s Externalization Analysis (if `deploy_targets` includes Kubernetes AND `VAR_MINIKUBE_APPROVED` is `true`):**
+  Follow the "Nothing Hardcoded Inside" principle from `rules/kubernetes_rules.md` §10:
+  1. Analyze the project source code and identify ALL files that contain configuration.
+     Scope the scan to `src/`, `config/`, and the project root directory; respect
+     `.gitignore` patterns to exclude `node_modules/`, `vendor/`, and build artifacts.
+     Look for patterns: `.yml`, `.yaml`, `.properties`, `.conf`, `.ini`, `.json` config,
+     `.env`, `.xml` config, framework-specific config files.
+  2. Classify each file/parameter into one of 3 categories:
+     - **ConfigMap** (mounted as file): application config files, static pages, web server configs
+     - **Secret**: credentials, certificates, tokens, API keys
+     - **Environment variable** (from ConfigMap): simple runtime parameters
+  3. Present the externalization map to the user for approval:
+     *"I identified the following items to externalize for Kubernetes deployment:*
+     *📄 ConfigMap (mounted as files): [list]*
+     *🔒 Secret: [list]*
+     *🔧 Environment Variables (from ConfigMap): [list]*
+     *Do you confirm this structure? Would you like to modify anything?"*
+  4. Wait for user confirmation → save the approved map in `VAR_K8S_EXTERNALIZATION_MAP`.
+  5. Use this map during STEP 4 to generate correct K8s manifests.
 - **STOP:** Wait for user "GO" before touching the `output/` folder.
 
 ### STEP 3: Backup Protocol
@@ -158,6 +207,10 @@ If the agent determines that the fix requires modifying files NOT covered by the
 - **Git Integration (if `VAR_GIT_ENABLED`):** Create a `feature/<task-name>` or
   `fix/<task-name>` branch before starting implementation. Commit incrementally
   with conventional commit messages (see `rules/git_rules.md`).
+- **K8s Externalization (if `VAR_K8S_EXTERNALIZATION_MAP` is set and non-empty):** Generate Kubernetes
+  manifests (ConfigMaps, Secrets, volume mounts) according to the approved externalization
+  map. Every configuration file identified in the map MUST be externalized — no configuration
+  hardcoded inside container images. See `rules/kubernetes_rules.md` §10.
 - **Test-Driven Development (MANDATORY):** For every new function, method, or endpoint,
   follow the RED-GREEN-REFACTOR cycle defined in `rules/testing_rules.md` §1.1.
   Write the failing test first, then the minimal implementation, then refactor.
@@ -227,7 +280,14 @@ If the agent determines that the fix requires modifying files NOT covered by the
 4. **Archiving:** Move files from `specs/active/` to `specs/history/`.
 5. **Cleanup:** Empty the `session/` folder.
 6. **Changelog:** Record the activity in `changelog.md`.
-7. **Git Release (if `VAR_GIT_ENABLED`):**
+7. **Kubernetes Deploy (if `deploy_targets` includes Kubernetes):**
+   - If `VAR_MINIKUBE_APPROVED` is `false`:
+     - SKIP Kubernetes deployment.
+     - Display: *"⚠️ Kubernetes deployment skipped: Minikube not authorized. Authorize Minikube installation to enable K8s deployment."*
+   - If `VAR_MINIKUBE_APPROVED` is `true`:
+     - Apply K8s manifests to Minikube following `rules/kubernetes_rules.md`.
+     - Verify all pods are running and healthy.
+8. **Git Release (if `VAR_GIT_ENABLED`):**
    - Merge the working branch into `develop` (or `main` if no `develop` branch).
      If the project has CI/CD configured, this should be done via Pull Request per `rules/git_rules.md`.
    - Determine the new version based on commit types (see `rules/git_rules.md` §3).
@@ -246,3 +306,4 @@ If the agent determines that the fix requires modifying files NOT covered by the
 - **Security:** Follow `rules/security_rules.md` at all times — no exceptions.
 - **Test-First:** No production code without a failing test first — see `rules/testing_rules.md` §1.1.
 - **Evidence Over Claims:** Never declare success without fresh verification evidence — see `rules/testing_rules.md` §6.
+- **Nothing Hardcoded Inside:** Every configuration that may vary between environments must be externalized as ConfigMap, Secret, or environment variable — see `rules/kubernetes_rules.md` §10.
