@@ -51,6 +51,8 @@ explicitly read from or write to the JSON file**. Do not rely on chat history al
 | `VAR_GIT_ENABLED`        | Boolean | `true` if `version_control.enabled` is `true` in config |
 | `VAR_CURRENT_VERSION`    | String  | Current project version (SemVer format, e.g. `1.2.0`) |
 | `VAR_REGRESSION_CHECK`   | String  | `PASS`, `FAIL`, or `WARN` (set at STEP 5.0)            |
+| `VAR_TEST_BASELINE`      | Boolean | `true` if `output/test_playbook.md` was loaded at bootstrap |
+| `VAR_TEST_COUNT`         | Integer | Number of tests in the loaded baseline (0 if no baseline) |
 
 ---
 
@@ -97,12 +99,18 @@ If the agent determines that the fix requires modifying files NOT covered by the
 1. Update `VAR_SESSION_STEP` to `0` in `session_state.json`.
 2. **Read ALL files in `rules/`** and assimilate them as your operational directives.
    These are your libraries — treat them with the same authority as this file.
-   This includes `rules/testing_rules.md`. If `output/test_playbook.md` exists, read it
-   as the regression test baseline.
-3. Inventory your available MCP servers; record them in `VAR_AVAILABLE_MCP`.
-4. Read `config.json` and the optional `output/deployed_state.json`.
-5. **Session Check:** If `session/session_state.json` exists, load it to resume progress.
-6. **Git Integration Check:** If `version_control.enabled` is `true` in `config.json`,
+   This includes `rules/testing_rules.md`.
+3. **Test Baseline Loading:**
+   - If `output/test_playbook.md` exists:
+     - Read it as the regression test baseline.
+     - Count the total number of tests defined in it.
+     - Set `VAR_TEST_BASELINE` to `true` and `VAR_TEST_COUNT` to the test count
+       in `session_state.json`.
+   - If it does not exist, set `VAR_TEST_BASELINE` to `false` and `VAR_TEST_COUNT` to `0`.
+4. Inventory your available MCP servers; record them in `VAR_AVAILABLE_MCP`.
+5. Read `config.json` and the optional `output/deployed_state.json`.
+6. **Session Check:** If `session/session_state.json` exists, load it to resume progress.
+7. **Git Integration Check:** If `version_control.enabled` is `true` in `config.json`,
    read and apply `rules/git_rules.md` as operational directives. Set `VAR_GIT_ENABLED`
    to `true` in `session_state.json`.
 
@@ -145,6 +153,10 @@ If the agent determines that the fix requires modifying files NOT covered by the
 - **Git Integration (if `VAR_GIT_ENABLED`):** Create a `feature/<task-name>` or
   `fix/<task-name>` branch before starting implementation. Commit incrementally
   with conventional commit messages (see `rules/git_rules.md`).
+- **Test-Driven Development (MANDATORY):** For every new function, method, or endpoint,
+  follow the RED-GREEN-REFACTOR cycle defined in `rules/testing_rules.md` §1.1.
+  Write the failing test first, then the minimal implementation, then refactor.
+  Commit test + implementation together.
 
 ### STEP 5: Validation & Test
 
@@ -164,6 +176,10 @@ If the agent determines that the fix requires modifying files NOT covered by the
     - ⚠️ **WARN** if environment variables listed in the manifest were removed (may be intentional).
   - If any FAIL condition is detected: **STOP** and present the differences to the user. Ask for explicit approval before proceeding.
   - If `output/test_playbook.md` exists from a prior session, verify that ALL tests in it still PASS.
+  - If `VAR_TEST_BASELINE` is `true`, verify that the total test count has NOT decreased
+    compared to `VAR_TEST_COUNT`. New functionality MUST add new tests, never remove existing ones
+    without explicit user approval. If the count has decreased: **STOP** and request explicit
+    user approval before proceeding.
   - Log the comparison result in `session_state.json` as `VAR_REGRESSION_CHECK`: `PASS`, `FAIL`, or `WARN`.
 
 5.1. **Build:** Execute `docker-compose build` or `docker build`.
@@ -220,3 +236,5 @@ If the agent determines that the fix requires modifying files NOT covered by the
 - **Persistence:** The JSON file is the only source of truth for the session state.
 - **Container-First:** All development and testing happens inside Docker containers.
 - **Security:** Follow `rules/security_rules.md` at all times — no exceptions.
+- **Test-First:** No production code without a failing test first — see `rules/testing_rules.md` §1.1.
+- **Evidence Over Claims:** Never declare success without fresh verification evidence — see `rules/testing_rules.md` §6.

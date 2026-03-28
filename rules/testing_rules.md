@@ -15,6 +15,65 @@ choose what to test — this file defines it. Tests are mandatory, not optional.
 
 ---
 
+## 1.1 Test-Driven Development (TDD) Iron Law
+
+> **Inspired by:** [obra/superpowers](https://github.com/obra/superpowers) — `skills/test-driven-development`
+
+### The Rule
+
+```
+NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
+```
+
+For every new function, method, endpoint, or behavior the agent implements during STEP 4,
+the agent MUST follow the **RED-GREEN-REFACTOR** cycle:
+
+1. **RED:** Write a minimal test that describes the expected behavior. Run it. It MUST fail.
+2. **GREEN:** Write the minimum code necessary to make the test pass. Run it. It MUST pass.
+3. **REFACTOR:** Clean up the code (remove duplication, improve names). Tests MUST stay green.
+4. **COMMIT:** Commit the test + implementation together.
+
+### When to Apply TDD
+
+**Always:**
+- New features (new endpoints, new functions, new services)
+- Bug fixes (write a test that reproduces the bug FIRST)
+- Behavior changes (test the new behavior before changing code)
+
+**Exceptions (require explicit user approval):**
+- Pure configuration files (docker-compose.yml, .env, nginx.conf)
+- Generated/scaffolded code (boilerplate from frameworks)
+- Infrastructure-only changes (Dockerfile, K8s manifests with no logic)
+
+### The Delete Rule
+
+If the agent writes implementation code BEFORE writing the corresponding test:
+- **Delete the implementation code.**
+- Start over with the TDD cycle.
+- Do NOT keep the code "as reference." Do NOT "adapt" it.
+
+### Anti-Rationalization Table
+
+| Excuse the agent might use | Reality |
+|---|---|
+| "Too simple to test" | Simple code breaks. A test takes 30 seconds to write. |
+| "I'll write tests at STEP 5" | Tests written after code pass immediately — that proves nothing. |
+| "Tests after achieve the same goal" | Tests-after verify "what does this do?" — Tests-first verify "what SHOULD this do?" |
+| "TDD will slow me down" | TDD is faster than debugging. The time saved in STEP 5/6 is massive. |
+| "I need to explore first" | Fine — but throw away the exploration and start fresh with TDD. |
+| "The test is hard to write" | Hard to test = hard to use. Simplify the design. |
+| "Just this once" | No exceptions without explicit user permission. |
+
+### Red Flags — STOP and Start Over
+
+If the agent catches itself in any of these situations, it MUST stop and restart with TDD:
+- Code written before test
+- Test passes immediately on first run (testing existing behavior, not new)
+- Can't explain why the test failed
+- Using words like "should work", "probably passes", "looks correct"
+
+---
+
 ## 2. Test Strategy by Service Type
 
 ### 2.1 Web Services (Frontend / API Gateway / Web App)
@@ -118,3 +177,48 @@ When a new agent session starts (STEP 0), if `output/test_playbook.md` exists:
 4. The non-regression check (STEP 5.0) MUST also verify that ALL tests
    in the existing playbook still PASS (in addition to the manifest checks).
 5. The updated `test_playbook.md` and `test_results.md` replace the previous versions.
+
+---
+
+## 6. Verification Before Completion
+
+> **Inspired by:** [obra/superpowers](https://github.com/obra/superpowers) — `skills/verification-before-completion`
+
+### The Rule
+
+```
+NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
+```
+
+Before the agent declares ANY of the following, it MUST have run the verification
+command **in that same interaction** and read the full output:
+
+| Claim | Requires | NOT Sufficient |
+|---|---|---|
+| "Tests pass" | Test command output showing 0 failures | Previous run, "should pass" |
+| "Build succeeds" | Build command output with exit 0 | "Linter passed" |
+| "Service is healthy" | Health check response (HTTP 200, port open) | "Container started" |
+| "Bug is fixed" | Failing test now passes + no regressions | "Code changed, assumed fixed" |
+| "All tests still pass" | Full test suite output, 0 failures | Partial test run |
+
+### Prohibited Language
+
+The agent MUST NOT use any of the following before verification:
+- "Should work now"
+- "Probably passes"
+- "Looks correct"
+- "I'm confident this fixes it"
+- "Great!", "Perfect!", "Done!" (before running verification)
+
+### The Gate Function
+
+```
+BEFORE claiming any status:
+1. IDENTIFY: What command proves this claim?
+2. RUN: Execute the FULL command (not partial)
+3. READ: Full output, check exit code
+4. VERIFY: Does output confirm the claim?
+   - If NO → State actual status with evidence
+   - If YES → State claim WITH evidence
+5. ONLY THEN: Make the claim
+```
