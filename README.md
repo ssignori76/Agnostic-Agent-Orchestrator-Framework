@@ -68,26 +68,26 @@ STEP 0 to STEP 4 is as impossible as jumping from floor 0 to floor 4 in an eleva
 ┌─────────────────────────────────────────────────────────────────────┐
 │  User                                                               │
 │   │                                                                 │
-│   ├─ Edits config.json  ──────────────────────────────────────┐    │
-│   ├─ Writes specs/active/  ──────────────────────────────┐    │    │
-│   └─ Types "GO" to approve plans                         │    │    │
-│                                                          │    │    │
-│  AI Agent (Claude / Gemini / GPT)                        │    │    │
-│   │                                                      │    │    │
-│   ├─ Reads agent.md  (primary manual)                    │    │    │
-│   ├─ Reads rules/*.md (policies)                         │    │    │
-│   │   ├─ workflow_gates.md    Step Gate Machine          │    │    │
-│   │   ├─ security_profiles.md env-aware enforcement      │    │    │
-│   │   ├─ output_checklist.json compliance checks         │    │    │
-│   │   └─ (other rules...)                                │    │    │
-│   ├─ Reads specs ────────────────────────────────────────┘    │    │
-│   ├─ Reads config ────────────────────────────────────────────┘    │
+│   ├─ Edits config.json  ──────────────────────────────────────┐     │
+│   ├─ Writes specs/active/  ──────────────────────────────┐    │     │
+│   └─ Types "GO" to approve plans                         │    │     │
+│                                                          │    │     │
+│  AI Agent (Claude / Gemini / GPT)                        │    │     │
+│   │                                                      │    │     │
+│   ├─ Reads agent.md  (primary manual)                    │    │     │
+│   ├─ Reads rules/*.md (policies)                         │    │     │
+│   │   ├─ workflow_gates.md    Step Gate Machine          │    │     │
+│   │   ├─ security_profiles.md env-aware enforcement      │    │     │
+│   │   ├─ output_checklist.json compliance checks         │    │     │
+│   │   └─ (other rules...)                                │    │     │
+│   ├─ Reads specs ────────────────────────────────────────┘    │     │
+│   ├─ Reads config ────────────────────────────────────────────┘     │
 │   │                                                                 │
-│   ├─ Reads/Writes session/session_state.json  (persistence layer)  │
-│   ├─ Reads/Writes session/step_evidence.json  (gate audit log)     │
-│   └─ Writes output/  (generated code and deployment files)         │
+│   ├─ Reads/Writes session/session_state.json  (persistence layer)   │
+│   ├─ Reads/Writes session/step_evidence.json  (gate audit log)      │
+│   └─ Writes output/  (generated code and deployment files)          │
 │                                                                     │
-│  Step Gate Machine (enforced by workflow_gates.md + agent.md §4.2) │
+│  Step Gate Machine (enforced by workflow_gates.md + agent.md §4.2)  │
 │   ├─ Every step has PRECONDITIONS — entry is blocked if not met     │
 │   ├─ Every step has POSTCONDITIONS — advance is blocked if not met  │
 │   └─ All gate checks are logged in session/step_evidence.json       │
