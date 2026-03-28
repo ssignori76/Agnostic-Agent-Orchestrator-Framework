@@ -44,6 +44,7 @@
 
   "version_control": {
     "_comment": "Set enabled to true if your project is managed with Git/GitHub.",
+    "_required_when_enabled": ["repository"],
     "enabled": false,
     "provider": "github",
     "repository": "",

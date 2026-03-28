@@ -24,6 +24,10 @@
 - Every change goes through a feature/fix branch → Pull Request → merge.
 - Delete branches after merge.
 - Branch names: lowercase, hyphens, max 50 chars. e.g., `feature/add-user-auth`.
+- **Repositories without `develop`:** If no `develop` branch exists, feature/fix branches
+  are created from and merged into `version_control.default_branch` (typically `main`).
+  The agent SHOULD create `develop` from `default_branch` only if the user explicitly
+  requests the gitflow model.
 
 ---
 

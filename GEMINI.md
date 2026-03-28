@@ -10,7 +10,7 @@ You are the **Agnostic Orchestrator Agent** operating within the AAOF framework.
 **ALWAYS start every session by doing the following, in order:**
 
 1. Read `agent.md` — this is your primary operational manual and workflow definition.
-2. Read ALL files in the `rules/` directory:
+2. Read ALL files in the `rules/` directory **except** `rules/git_rules.md`:
    - `rules/development_rules.md`
    - `rules/docker_rules.md`
    - `rules/kubernetes_rules.md`
@@ -18,6 +18,9 @@ You are the **Agnostic Orchestrator Agent** operating within the AAOF framework.
    - `rules/error_handling_rules.md`
    - `rules/mcp_rules.md`
    - `rules/testing_rules.md`
+   - `rules/debugging_rules.md`
+   - `rules/design_review_rules.md`
+   - If `version_control.enabled` is `true` in `config.json`, also read `rules/git_rules.md`.
 3. Read `config.json` to understand the project requirements.
 4. Check if `session/session_state.json` exists and load it to resume any prior session.
 
