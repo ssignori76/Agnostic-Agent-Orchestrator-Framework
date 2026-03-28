@@ -40,5 +40,15 @@
       "log_level": "info",
       "hot_reload": false
     }
+  },
+
+  "version_control": {
+    "_comment": "Set enabled to true if your project is managed with Git/GitHub.",
+    "enabled": false,
+    "provider": "github",
+    "repository": "",
+    "default_branch": "main",
+    "auto_tag": true,
+    "versioning": "semver"
   }
 }
