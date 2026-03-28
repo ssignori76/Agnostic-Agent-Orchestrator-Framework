@@ -1,7 +1,7 @@
 # Agnostic Agent Orchestrator Framework (AAOF)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](changelog.md)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](changelog.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 > **Give any AI agent a structured operating system — and watch it build production-ready
@@ -43,6 +43,12 @@ plan → backup → build → validate → deploy.
 | **Rollback Gate** | Structured recovery on failure (retry / rollback / abort) |
 | **MCP-Aware** | Works with any MCP-enabled agent (Claude Code, Gemini CLI…) |
 | **Changelog Enforced** | Every action is logged in `changelog.md` |
+| **TDD Iron Law** | RED-GREEN-REFACTOR mandatory cycle — no production code without a failing test first |
+| **Non-Regression Gate** | Pre-build diff against backup manifest prevents accidental removal of files, methods, volumes |
+| **Git/GitHub Integration** | Optional branching, Conventional Commits, SemVer auto-tagging, PR-based merge |
+| **Design Review Gate** | Mandatory context gathering and approach proposal before execution planning |
+| **Debugging Protocol** | Systematic 4-phase investigation before any fix attempt |
+| **Step Transition Rules** | Documented forward-only principle with safe backward transitions and incremental backups |
 
 ---
 
@@ -62,7 +68,11 @@ AAOF/
 │   ├── kubernetes_rules.md         ← Minikube-first, 1 resource per file, Kustomize
 │   ├── security_rules.md           ← No secrets in code, non-root users, scanning
 │   ├── error_handling_rules.md     ← Retry strategy, rollback procedures, logging
-│   └── mcp_rules.md                ← MCP server discovery and usage conventions
+│   ├── mcp_rules.md                ← MCP server discovery and usage conventions
+│   ├── git_rules.md                ← Branching model, Conventional Commits, SemVer
+│   ├── testing_rules.md            ← Test coverage, TDD Iron Law, verification gate
+│   ├── debugging_rules.md          ← Systematic debugging protocol, investigation phases
+│   └── design_review_rules.md      ← Design review gate, approach proposals, approval
 │
 ├── specs/
 │   ├── active/                     ← Requirements the AI should implement NOW
@@ -101,14 +111,14 @@ AAOF/
 The AI agent follows a 7-step workflow defined in `agent.md`:
 
 ```
-STEP 0  Bootstrap       Read all rules/, inventory MCP servers, load session state
+STEP 0  Bootstrap       Read rules/ (conditional git_rules), load test baseline, inventory MCP
 STEP 1  Resolution      Resolve version conflicts, confirm technical choices
-STEP 2  Plan            Present execution plan → wait for user GO
-STEP 3  Backup          Snapshot everything before touching output/
-STEP 4  Implement       Generate code and containers following rules/
-STEP 5  Validate        Build → Run → Health check → PASS or FAIL
-STEP 6  Rollback Gate   On FAIL: notify user, offer Retry / Rollback / Abort
-STEP 7  Consolidate     Update deployed_state.json, archive specs, update changelog
+STEP 2  Plan            Design review gate → present execution plan → wait for user GO
+STEP 3  Backup          Pre-backup inventory (backup_manifest.json) → snapshot output/
+STEP 4  Implement       TDD mandatory (RED-GREEN-REFACTOR) → generate code following rules/
+STEP 5  Validate        Non-regression check → Build → Run → Health check → Functional tests
+STEP 6  Rollback Gate   On FAIL: debugging protocol → Retry / Retry Extended / Rollback / Abort
+STEP 7  Consolidate     Git release (SemVer tag) → update state → archive specs → changelog
 ```
 
 The session state (`session/session_state.json`) persists across AI context windows,
@@ -146,7 +156,7 @@ Before using AAOF, ensure you have:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/ssignori76/Agnostic-Agent-Orchestrator-Framework-AAOF-.git my-project
+git clone https://github.com/ssignori76/Agnostic-Agent-Orchestrator-Framework.git my-project
 cd my-project
 ```
 
@@ -191,12 +201,18 @@ your project get built inside Docker containers.
 
 ## 🗺 Roadmap
 
-### Phase 1 — Foundation (current: v0.2.0)
+### Phase 1 — Foundation (current: v0.3.0)
 - [x] Core workflow (agent.md) with 7-step process
 - [x] Rules library (development, docker, k8s, security, error handling, MCP)
 - [x] Validation & Rollback gates
 - [x] Templates for Docker and Kubernetes
 - [x] Gemini CLI integration guide
+- [x] Git/GitHub integration rules with SemVer auto-tagging
+- [x] Testing strategy with TDD Iron Law enforcement
+- [x] Non-regression verification and backup hardening
+- [x] Step transition rules with extended retry support
+- [x] Design review and debugging protocols
+- [x] Verification Before Completion enforcement
 
 ### Phase 2 — Cloud & Advanced Deployments
 - [ ] Cloud Kubernetes support (EKS, GKE, AKS)

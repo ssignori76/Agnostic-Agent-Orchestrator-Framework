@@ -11,6 +11,70 @@ AAOF uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.0] — 2026-03-28
+
+### Added
+
+**Rules Library — New Files**
+- `rules/git_rules.md` — Branching model, Conventional Commits, SemVer algorithm, tagging, PR
+  standards, repository hygiene. Conditionally loaded when `version_control.enabled = true`.
+  Includes fallback for repos without a `develop` branch; `develop` created only on explicit
+  user request
+- `rules/testing_rules.md` — Mandatory test coverage by service type (Web/API, Backend,
+  Database), test playbook/results artifacts, TDD Iron Law (RED-GREEN-REFACTOR), Verification
+  Before Completion gate
+- `rules/debugging_rules.md` — Systematic Debugging Protocol: 4-phase Investigation Protocol
+  (Evidence → Root Cause → Targeted Fix → Post-Fix Verification), Three-Strike Rule,
+  Anti-Pattern Detection table
+- `rules/design_review_rules.md` — Design Review Protocol: mandatory context gathering,
+  approach proposal (2–3 alternatives with trade-offs), No Placeholders Rule, self-review
+  checklist, user approval gate before STEP 3
+
+**Core Framework Enhancements (`agent.md`)**
+- §4.1 Step Transition Rules — Forward-only principle with documented allowed backward
+  transitions, Retry with Extended Scope (STEP 6 → STEP 3 → STEP 4), incremental backup
+  support (`backup_manifest_retry_N.json`), prohibited transitions
+- STEP TRACKING RULE — Global mandate: `VAR_SESSION_STEP` must be updated as the first action
+  of every step (0–7)
+- STEP 3 — Pre-Backup Inventory: mandatory `backup_manifest.json` with SHA-256 hashes, public
+  methods, Docker volumes, K8s resources, exposed ports, env vars. Backup completeness gate
+  before STEP 4. `VAR_ACTIVE_BACKUP_PATH` session variable
+- STEP 4 — TDD mandatory: RED-GREEN-REFACTOR per function, failing test written first, test +
+  implementation committed together. Git branching (`feature/` or `fix/`) when `VAR_GIT_ENABLED`
+- STEP 5.0 — Non-Regression Check: diff current `output/` vs `backup_manifest.json`, FAIL on
+  missing files/removed methods/removed volumes/PVCs/endpoints, WARN on env vars. Test-count
+  guard with `VAR_TEST_BASELINE` / `VAR_TEST_COUNT`
+- STEP 5.4 — Functional Tests sub-step
+- STEP 6 — Retry (Extended) option, references `rules/debugging_rules.md` Investigation Protocol
+- STEP 7 — Git Release: merge via PR when CI/CD configured, SemVer bump, annotated tag (gated
+  on `version_control.auto_tag`), `VAR_CURRENT_VERSION` update
+- §5 Golden Rules — Added `Test-First` and `Evidence Over Claims`
+
+**Configuration**
+- `config.json` — New `version_control` block (`enabled`, `provider`, `repository`,
+  `default_branch`, `auto_tag`, `versioning`) with `_required_when_enabled` documentation
+
+**Session Variables — New**
+- `VAR_GIT_ENABLED` (Boolean) — Git integration active flag
+- `VAR_CURRENT_VERSION` (String) — SemVer current version
+- `VAR_REGRESSION_CHECK` (String) — `PASS`/`FAIL`/`WARN` from STEP 5.0
+- `VAR_TEST_BASELINE` (Boolean) — Test baseline loaded flag
+- `VAR_TEST_COUNT` (Integer) — Number of tests in baseline
+- `VAR_ACTIVE_BACKUP_PATH` (String) — Path to active backup folder
+
+### Changed
+
+- STEP 0 — Rules loading now excludes `git_rules.md` unconditionally; git rules loaded only
+  when `version_control.enabled = true`. Added conditional test baseline loading
+- STEP 2 — References `rules/design_review_rules.md` quality standards
+- STEP 5 — Renumbered sub-steps (5.0–5.6) to accommodate non-regression check and functional
+  tests
+- STEP 6 — Added Retry (Extended) option alongside existing Retry/Rollback/Abort
+- `GEMINI.md` — Bootstrap reading list updated with all new rule files and conditional
+  `git_rules.md`
+
+---
+
 ## [0.2.0] — 2024-01-15
 
 ### Added — Phase 1 Foundation
