@@ -10,5 +10,6 @@
   "VAR_SESSION_STEP": 0,
   "VAR_AVAILABLE_MCP": ["filesystem", "git"],
   "VAR_VALIDATION_RESULT": null,
-  "VAR_RETRY_COUNT": 0
+  "VAR_RETRY_COUNT": 0,
+  "VAR_CONTRACT_CHECK": "N/A"
 }

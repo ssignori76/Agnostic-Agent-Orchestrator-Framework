@@ -73,6 +73,7 @@ If any postcondition fails: STOP, inform user which condition failed, do NOT adv
 | POST-2.1 | Execution plan presented with ≥2 alternatives (or documented reason for single approach) | Plan text was output to user during this step |
 | POST-2.2 | User explicit "GO" received | User typed "GO" or equivalent approval during this step |
 | POST-2.3 | `VAR_SESSION_STEP` == 2 | Read `session_state.json`, check value |
+| POST-2.4 | `session/requirements_checklist.json` created with all functional requirements from the execution plan (all statuses set to `pending`) | File exists in `session/` and contains ≥1 requirement entry |
 
 ### Gate Failure Action
 
@@ -122,6 +123,7 @@ If any postcondition fails: STOP, inform user which condition failed, do NOT adv
 | POST-4.1 | Source files exist in `output/` | List `output/` directory; confirm non-empty |
 | POST-4.2 | TDD evidence recorded (test files created before/with implementation, or explicit user-approved exception documented in `session_state.json`) | Check test file timestamps or user approval record |
 | POST-4.3 | All code follows `rules/development_rules.md` (file headers, line limits, error handling) | Manual review or automated check |
+| POST-4.4 | Contract check passed — all requirements in `session/requirements_checklist.json` have `status == "pass"` or `"waived"` (i.e. `VAR_CONTRACT_CHECK` == `PASS`) | Read `session_state.json`; read `session/requirements_checklist.json` for detail |
 
 ### Gate Failure Action
 
@@ -240,6 +242,27 @@ The agent creates and appends to this file at every step transition:
         "PRE-1.1": { "condition": "VAR_SESSION_STEP == 0", "result": "PASS" },
         "PRE-1.2": { "condition": "VAR_DOCKER_INSTALLED == true", "result": "PASS" },
         "PRE-1.3": { "condition": "session_state.json exists", "result": "PASS" }
+      },
+      "gate_result": "PASS"
+    },
+    {
+      "from": 4,
+      "to": 5,
+      "timestamp": "ISO-8601",
+      "postconditions_checked": {
+        "POST-4.1": { "condition": "output/ non-empty", "result": "PASS" },
+        "POST-4.2": { "condition": "TDD evidence recorded", "result": "PASS" },
+        "POST-4.3": { "condition": "Code follows development_rules.md", "result": "PASS" },
+        "POST-4.4": { "condition": "Contract check passed", "result": "PASS" }
+      },
+      "contract_check": {
+        "total_requirements": 5,
+        "passed": 5,
+        "failed": 0,
+        "waived": 0,
+        "result": "PASS",
+        "failed_ids": [],
+        "waived_ids": []
       },
       "gate_result": "PASS"
     }

@@ -1,0 +1,136 @@
+{
+  "_comment": "AAOF Requirements Checklist — generated automatically at STEP 2 after user GO. Updated at STEP 4 by the contract check.",
+  "checklist_version": "1.0",
+  "generated_at": "2024-01-15T10:30:00Z",
+  "step": 2,
+  "execution_plan_summary": "Build a Node.js/Express REST API with PostgreSQL. Implement user authentication (register/login/logout), product listing, and shopping cart. Deploy via Docker Compose with isolated networks.",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "step": 4,
+      "category": "functional",
+      "description": "User registration endpoint: POST /api/auth/register — accepts username, email, password; hashes password with bcrypt; stores user in DB; returns JWT",
+      "artifacts": [
+        "output/src/auth/register.js",
+        "output/src/auth/authRoutes.js"
+      ],
+      "verification": "Files exist and are non-empty. authRoutes.js exports a router with POST /register. register.js exports a handler that calls bcrypt and returns a JWT.",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-002",
+      "step": 4,
+      "category": "functional",
+      "description": "User login endpoint: POST /api/auth/login — validates credentials against DB, returns JWT on success, 401 on failure",
+      "artifacts": [
+        "output/src/auth/login.js",
+        "output/src/auth/authRoutes.js"
+      ],
+      "verification": "login.js exists and is non-empty. authRoutes.js includes POST /login route.",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-003",
+      "step": 4,
+      "category": "functional",
+      "description": "Product listing endpoint: GET /api/products — returns paginated list of products from DB; supports ?page and ?limit query params",
+      "artifacts": [
+        "output/src/products/productController.js",
+        "output/src/products/productRoutes.js"
+      ],
+      "verification": "Both files exist and are non-empty. productRoutes.js exports a router with GET / route.",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-004",
+      "step": 4,
+      "category": "functional",
+      "description": "Shopping cart: POST /api/cart/add, GET /api/cart, DELETE /api/cart/:itemId — requires authentication; persists cart items per user in DB",
+      "artifacts": [
+        "output/src/cart/cartController.js",
+        "output/src/cart/cartRoutes.js"
+      ],
+      "verification": "Both files exist and are non-empty. cartRoutes.js exports a router with POST /add, GET /, DELETE /:itemId routes. All routes use auth middleware.",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-005",
+      "step": 4,
+      "category": "infrastructure",
+      "description": "Docker Compose configuration with isolated networks: app-network (frontend/backend) and db-network (backend/db only)",
+      "artifacts": [
+        "output/docker-compose.yml",
+        "output/docker-compose.dev.yml"
+      ],
+      "verification": "Both files exist. docker-compose.yml defines at least 2 named networks. DB service is only on db-network.",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-006",
+      "step": 4,
+      "category": "infrastructure",
+      "description": "Database migration scripts to create users, products, and cart_items tables",
+      "artifacts": [
+        "output/db/migrations/001_create_users.sql",
+        "output/db/migrations/002_create_products.sql",
+        "output/db/migrations/003_create_cart_items.sql"
+      ],
+      "verification": "All three SQL files exist and are non-empty. Each creates the respective table.",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-007",
+      "step": 4,
+      "category": "security",
+      "description": "JWT authentication middleware that validates Bearer tokens on protected routes",
+      "artifacts": [
+        "output/src/middleware/authMiddleware.js"
+      ],
+      "verification": "File exists and is non-empty. Exports a middleware function that verifies JWT and attaches user to req.",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-008",
+      "step": 4,
+      "category": "security",
+      "description": ".env.example file with all required environment variables documented",
+      "artifacts": [
+        "output/.env.example"
+      ],
+      "verification": "File exists and contains entries for DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, JWT_SECRET.",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-009",
+      "step": 4,
+      "category": "testing",
+      "description": "Unit tests for authentication module (register and login handlers)",
+      "artifacts": [
+        "output/tests/auth.test.js"
+      ],
+      "verification": "File exists and is non-empty. Contains at least 4 test cases (register success, register duplicate, login success, login invalid).",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "REQ-010",
+      "step": 4,
+      "category": "testing",
+      "description": "Unit tests for shopping cart module (add, list, remove)",
+      "artifacts": [
+        "output/tests/cart.test.js"
+      ],
+      "verification": "File exists and is non-empty. Contains at least 3 test cases (add item, get cart, remove item).",
+      "status": "pending",
+      "evidence": ""
+    }
+  ]
+}

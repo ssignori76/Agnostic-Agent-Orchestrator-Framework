@@ -59,6 +59,7 @@ explicitly read from or write to the JSON file**. Do not rely on chat history al
 | `VAR_MINIKUBE_APPROVED`  | Boolean | `true` if the user has authorized Minikube installation/usage. Persists across sessions |
 | `VAR_K8S_EXTERNALIZATION_MAP` | Object | Map of externalized configurations (ConfigMaps, Secrets, env vars) approved by the user at STEP 2 |
 | `VAR_SECURITY_PROFILE`   | String  | Active security profile: `lab`, `staging`, or `production` (set at STEP 1) |
+| `VAR_CONTRACT_CHECK`     | String  | `PASS`, `FAIL`, or `N/A` — result of the requirements contract check (set at STEP 4) |
 
 ---
 
@@ -164,6 +165,9 @@ Every step transition is governed by the gates defined in `rules/workflow_gates.
 6. Inventory your available MCP servers; record them in `VAR_AVAILABLE_MCP`.
 7. Read `config.json` and the optional `output/deployed_state.json`.
 8. **Session Check:** If `session/session_state.json` exists, load it to resume progress.
+   - Additionally, if `session/requirements_checklist.json` exists (indicating the session
+     has already progressed past STEP 2), load it to resume the active requirements
+     checklist. This ensures the contract check state is preserved across sessions.
 9. **Git Integration Check:** If `version_control.enabled` is `true` in `config.json`,
    read and apply `rules/git_rules.md` as operational directives. Set `VAR_GIT_ENABLED`
    to `true` in `session_state.json`. **If `false` or absent, set `VAR_GIT_ENABLED` to `false`.**
@@ -215,6 +219,18 @@ Every step transition is governed by the gates defined in `rules/workflow_gates.
   4. Wait for user confirmation → save the approved map in `VAR_K8S_EXTERNALIZATION_MAP`.
   5. Use this map during STEP 4 to generate correct K8s manifests.
 - **STOP:** Wait for user "GO" before touching the `output/` folder.
+- **Requirements Checklist (MANDATORY — after user "GO"):**
+  After receiving the user's "GO" approval, generate `session/requirements_checklist.json`
+  following the structure defined in `rules/requirements_checklist.md`:
+  1. Extract ALL functional, infrastructure, security, and testing requirements from the
+     approved execution plan.
+  2. For each requirement, identify the expected artifact file paths in `output/` and a
+     clear, verifiable criterion.
+  3. Assign sequential IDs (`REQ-001`, `REQ-002`, ...) and set all statuses to `"pending"`.
+  4. Write the file to `session/requirements_checklist.json`.
+  5. Confirm to the user: *"✅ Requirements checklist created with N requirements. All will
+     be verified via contract check at the end of STEP 4 before advancing to STEP 5."*
+  6. Set `VAR_CONTRACT_CHECK` to `"N/A"` in `session_state.json` (pending execution).
 
 ### STEP 3: Backup Protocol
 
@@ -259,6 +275,20 @@ Every step transition is governed by the gates defined in `rules/workflow_gates.
   follow the RED-GREEN-REFACTOR cycle defined in `rules/testing_rules.md` §1.1.
   Write the failing test first, then the minimal implementation, then refactor.
   Commit test + implementation together.
+- **Contract Check (MANDATORY — before advancing to STEP 5):**
+  After all implementation work is complete, run the contract check as defined in
+  `rules/requirements_checklist.md` §4:
+  1. READ `session/requirements_checklist.json`.
+  2. For each requirement, verify all declared artifacts exist and are non-empty, and
+     apply any additional verification from the `verification` field.
+  3. Set each requirement's `status` to `"pass"` or `"fail"` and record findings in `evidence`.
+  4. Set `VAR_CONTRACT_CHECK` in `session_state.json` to `"PASS"` (all pass/waived) or `"FAIL"`.
+  5. Write the updated `session/requirements_checklist.json`.
+  6. Log the contract check result in `session/step_evidence.json` (see `rules/requirements_checklist.md` §5).
+  7. If `VAR_CONTRACT_CHECK` == `"FAIL"`: **⛔ STOP.** Report all failing requirements to the user
+     with the format defined in `rules/requirements_checklist.md` §4.2. Do NOT advance to STEP 5.
+  8. If the user explicitly waives a requirement, update its `status` to `"waived"` and re-run the check.
+  Only when `VAR_CONTRACT_CHECK` == `"PASS"` may the agent advance to STEP 5.
 
 ### STEP 5: Validation & Test
 

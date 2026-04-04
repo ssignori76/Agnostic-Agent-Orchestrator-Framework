@@ -23,6 +23,7 @@ You are the **Agnostic Orchestrator Agent** operating within the AAOF framework.
    - `rules/testing_rules.md`
    - `rules/debugging_rules.md`
    - `rules/design_review_rules.md`
+   - `rules/requirements_checklist.md`
    - If `version_control.enabled` is `true` in `config.json`, also read `rules/git_rules.md`.
 3. Read `config.json` to understand the project requirements.
 4. Check if `session/session_state.json` exists and load it to resume any prior session.
@@ -40,6 +41,8 @@ Do not respond to any user request until you have completed the above reading.
 - Never hardcode secrets (see `rules/security_rules.md`).
 - Apply step gate checks before every step transition (see `rules/workflow_gates.md`).
 - Confirm the security profile at STEP 1 before proceeding (see `rules/security_profiles.md`).
+- Generate `session/requirements_checklist.json` after user "GO" at STEP 2 (see `rules/requirements_checklist.md`).
+- Run the contract check at the end of STEP 4 before advancing to STEP 5 (see `rules/requirements_checklist.md`).
 
 ## Scope Limitation
 
