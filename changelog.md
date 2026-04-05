@@ -9,6 +9,53 @@ AAOF uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.5.0] — 2026-04-05
+
+### Added
+
+**Requirements Checklist & Contract Check (PR #20)**
+- `rules/requirements_checklist.md` — Contract check mechanism between execution plan and produced artifacts
+- `session/requirements_checklist.json` — Per-step requirements tracking with pass/fail/waived status
+- `VAR_CONTRACT_CHECK` session variable — Blocks STEP 4→5 transition if requirements are not satisfied
+- Example file: `session/requirements_checklist.json.example`
+
+**Mandatory Artifacts Validation (PR #21)**
+- Gate check validation for mandatory artifact existence, non-emptiness, minimum content length, and required sections
+- Configurable per-step artifact requirements
+
+**Requirements Traceability Matrix (PR #22, #23)**
+- Explicit mapping between functional requirements and test files
+- Gate check TDD validation: every requirement must have at least one associated test
+- Coverage report (covered/uncovered) integrated in `step_evidence.json`
+
+**Namespace Separation (PR #24)**
+- Clear separation between framework artifacts (`.aaof/`) and project artifacts (`output/`)
+- Gate check validation prevents writing project artifacts in framework paths and vice versa
+
+**Template Scaffolding & Directory Validation (PR #25)**
+- Automatic directory and file stub generation based on project configuration
+- Gate check validation for empty directories (declared directories must contain application logic)
+
+**Optional Refinement Loop (PR #26)**
+- Step 5+ optional refinement loop with gap analysis between requirements and produced artifacts
+- Automatic gap report with missing requirements, files, and corrective actions
+
+**Auto-Scoring System**
+- Automatic quality scoring (0–100) based on: artifact coverage, test coverage, security compliance, module complexity
+- `output/scoring_report.md` generated at end of process with per-category scores and recommendations
+
+**Multi-Session Orchestration**
+- `AGENT_ORCHESTRATOR.md` — Complete guide for AI orchestrator agents
+- `prompts/resume_prompt.md` — Resume instructions for relaunched sub-agents
+- Turn limit recovery: orchestrator monitors `session_state.json` and relaunches sub-agents as needed
+- Orchestrator state persistence in `.aaof/orchestrator_state.json`
+
+---
+
+## [Unreleased] (pre-v0.5.0)
+
 ### Added
 
 **Testing Rules — Self-Execution Enforcement**

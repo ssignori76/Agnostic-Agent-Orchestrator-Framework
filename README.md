@@ -1,7 +1,7 @@
 # Agnostic Agent Orchestrator Framework (AAOF)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](changelog.md)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](changelog.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 > **Give any AI agent a structured operating system — and watch it build production-ready
@@ -59,6 +59,14 @@ STEP 0 to STEP 4 is as impossible as jumping from floor 0 to floor 4 in an eleva
 | **Step Transition Rules** | Documented forward-only principle with safe backward transitions and incremental backups |
 | **Auto-Prerequisites** | Docker auto-detected and installed; Minikube optional with persistent user choice |
 | **Config Externalization** | K8s configs, secrets, and env vars automatically mapped and externalized — nothing hardcoded inside containers |
+| **Requirements Checklist** | Automatic contract check between execution plan and produced artifacts (`rules/requirements_checklist.md`) |
+| **Requirements Traceability Matrix** | Explicit mapping of requirements → tests with validation in the TDD gate check |
+| **Mandatory Artifacts Validation** | Verifies artifact existence, non-emptiness, minimum length, and required sections for each step |
+| **Namespace Separation** | Clear separation between framework artifacts (`.aaof/`) and project artifacts (`output/`) |
+| **Template Scaffolding** | Automatic directory structure generation with empty-directory validation |
+| **Refinement Loop** | Optional gap analysis step between requirements and produced artifacts, with targeted iteration |
+| **Auto-Scoring System** | Automatic execution quality score with detailed report |
+| **Multi-Session Orchestration** | Orchestrator agent support with turn limit recovery |
 
 ---
 
@@ -107,6 +115,7 @@ AAOF/
 ├── agent.md                        ← The AI's operational manual (read this first)
 ├── config.json                     ← Your project requirements (incl. environment_context)
 ├── GEMINI.md                       ← Gemini CLI auto-loaded instructions
+├── AGENT_ORCHESTRATOR.md           ← Guide for AI orchestrator agents (multi-session)
 ├── changelog.md                    ← Chronological activity log
 ├── CONTRIBUTING.md                 ← How to contribute
 │
@@ -114,6 +123,7 @@ AAOF/
 │   ├── workflow_gates.md           ← Step Gate Machine: pre/postconditions per step
 │   ├── security_profiles.md        ← lab/staging/production enforcement rules
 │   ├── output_checklist.json       ← Machine-verifiable compliance checks (STEP 5.0.5)
+│   ├── requirements_checklist.md   ← Contract check mechanism (STEP 4→5 gate)
 │   ├── development_rules.md        ← Code quality, file size, naming conventions
 │   ├── docker_rules.md             ← Container-first dev, Compose best practices
 │   ├── kubernetes_rules.md         ← Minikube-first, 1 resource per file, Kustomize
@@ -131,13 +141,21 @@ AAOF/
 │
 ├── session/
 │   ├── session_state.json          ← Live session state (git-ignored, auto-managed)
-│   └── step_evidence.json          ← Gate check audit log (git-ignored, auto-managed)
+│   ├── step_evidence.json          ← Gate check audit log (git-ignored, auto-managed)
+│   └── requirements_checklist.json ← Per-step requirements tracking (git-ignored, auto-managed)
 │
 ├── output/                         ← Generated code, Dockerfiles, manifests
 │   ├── deployed_state.json         ← Technical snapshot of the last deployment
 │   ├── test_playbook.md            ← Test plan (generated at STEP 5)
 │   ├── test_results.md             ← Test execution results (generated at STEP 5)
-│   └── compliance_report.md        ← Compliance check results (generated at STEP 5.0.5)
+│   ├── compliance_report.md        ← Compliance check results (generated at STEP 5.0.5)
+│   └── scoring_report.md           ← Auto-scoring quality report (generated at STEP 7)
+│
+├── .aaof/                          ← Framework orchestrator artifacts (git-ignored)
+│   └── orchestrator_state.json     ← Orchestrator state for turn limit recovery
+│
+├── prompts/                        ← Ready-to-use prompts for orchestrator patterns
+│   └── resume_prompt.md            ← Resume instructions for relaunched sub-agents
 │
 ├── backups/                        ← Pre-change snapshots (git-ignored)
 │
@@ -207,10 +225,10 @@ of the next. The agent will stop and inform you if any gate fails.
 
 | | |
 |---|---|
-| **What happens** | Write code inside Docker containers following all `rules/`; TDD mandatory (RED-GREEN-REFACTOR); Git branch if enabled; K8s externalization if applicable |
+| **What happens** | Write code inside Docker containers following all `rules/`; TDD mandatory (RED-GREEN-REFACTOR); Git branch if enabled; K8s externalization if applicable; generate `session/requirements_checklist.json`; run **Contract Check** before advancing |
 | **Entry gate** | `VAR_SESSION_STEP` == 3; `VAR_ACTIVE_BACKUP_PATH` set; `backup_manifest.json` exists |
-| **Exit gate** | Source files exist in `output/`; TDD evidence recorded (or user-approved exception); all code follows `rules/development_rules.md` |
-| **Gate failure** | No production code without a failing test first — TDD is the Iron Law |
+| **Exit gate** | Source files exist in `output/`; TDD evidence recorded (or user-approved exception); all code follows `rules/development_rules.md`; `VAR_CONTRACT_CHECK` == PASS; all requirements in `requirements_checklist.json` satisfied |
+| **Gate failure** | No production code without a failing test first — TDD is the Iron Law; `VAR_CONTRACT_CHECK` == FAIL blocks transition to STEP 5 |
 
 ### STEP 5 — Validation & Test
 
@@ -324,10 +342,11 @@ STEP 0  Bootstrap       Docker check → read rules/ → load test baseline → 
 STEP 1  Resolution      Resolve versions → classify environment → load security profile → user confirm
 STEP 2  Plan            Design review gate → ≥2 alternatives → wait for user GO
 STEP 3  Backup          backup_manifest.json → snapshot output/ → verify completeness
-STEP 4  Implement       TDD mandatory (RED-GREEN-REFACTOR) → generate code following rules/
+STEP 4  Implement       TDD mandatory (RED-GREEN-REFACTOR) → generate code → Contract Check (VAR_CONTRACT_CHECK == PASS)
 STEP 5  Validate        Non-regression → Compliance check (5.0.5) → Build → Run → Tests → compliance_report.md
+        [Optional]      Refinement Loop — gap analysis between requirements and artifacts, iterate if needed
 STEP 6  Rollback Gate   On FAIL: debug protocol → Retry / Retry Extended / Rollback / Abort
-STEP 7  Consolidate     Update deployed_state.json → archive specs → changelog → Git release
+STEP 7  Consolidate     Update deployed_state.json → archive specs → changelog → scoring_report.md → Git release
 ```
 
 The session state (`session/session_state.json`) persists across AI context windows,
@@ -361,6 +380,7 @@ exclusively through that file (never from chat history alone).
 | `VAR_MINIKUBE_APPROVED` | Boolean | `true` if the user has authorized Minikube installation/usage |
 | `VAR_K8S_EXTERNALIZATION_MAP` | Object | Map of externalized configs (ConfigMaps, Secrets, env vars) |
 | `VAR_SECURITY_PROFILE` | String | Active security profile: `lab`, `staging`, or `production` |
+| `VAR_CONTRACT_CHECK` | String | `PASS` or `FAIL` from the contract check at STEP 4 (all requirements satisfied) |
 
 ---
 
@@ -517,9 +537,73 @@ auto-managed and should not be edited manually.
 
 ---
 
+## 🤖 Using AAOF with an Orchestrator Agent
+
+AAOF supports a **multi-session orchestration pattern** where a high-level AI agent (the
+*orchestrator*) manages the project lifecycle and delegates the actual implementation work
+to *sub-agents*. This pattern solves the **turn limit problem**: each sub-agent has a fresh
+budget of turns, so complex projects that would exceed a single session's limits are handled
+automatically.
+
+### How it works
+
+```
+Orchestrator Agent (Agent A)
+  │
+  │  1. Configures config.json and specs/
+  │
+  ├─► Sub-Agent 1 ── Implements until turn limit
+  │       └─ Writes session/session_state.json
+  │
+  ├─► Sub-Agent 2 ── Reads state, continues from VAR_SESSION_STEP
+  │       └─ Updates session/session_state.json
+  │
+  └─► Sub-Agent N ── Finishes at STEP 7, produces scoring_report.md
+```
+
+The orchestrator monitors `session/session_state.json` after each sub-agent run. If
+`VAR_SESSION_STEP` < 7, the sub-agent did not finish and the orchestrator relaunches it
+with the resume prompt. Up to 5 relaunch attempts are supported before the orchestrator
+notifies the user.
+
+### Ready-to-use prompts
+
+**Prompt 1 — If you have NOT yet cloned the repo (Italian):**
+
+```
+Scarica il repository https://github.com/ssignori76/Agnostic-Agent-Orchestrator-Framework.git
+e leggi il file AGENT_ORCHESTRATOR.md. Segui le istruzioni contenute nel file.
+```
+
+**Prompt 1 — If you have NOT yet cloned the repo (English):**
+
+```
+Download the repository https://github.com/ssignori76/Agnostic-Agent-Orchestrator-Framework.git
+and read the AGENT_ORCHESTRATOR.md file. Follow the instructions contained in the file.
+```
+
+**Prompt 2 — If you have ALREADY cloned the repo (Italian):**
+
+```
+Leggi il file AGENT_ORCHESTRATOR.md in questa directory.
+Segui le istruzioni contenute nel file.
+```
+
+**Prompt 2 — If you have ALREADY cloned the repo (English):**
+
+```
+Read the AGENT_ORCHESTRATOR.md file in this directory.
+Follow the instructions contained in the file.
+```
+
+See [`AGENT_ORCHESTRATOR.md`](AGENT_ORCHESTRATOR.md) for the full orchestrator guide,
+including turn limit recovery, state persistence, and the complete relaunch protocol.
+
+---
+
 ## 🗺 Roadmap
 
-### Phase 1 — Foundation (current: v0.4.0)
+### Phase 1 — Foundation (current: v0.5.0)
 - [x] Core workflow (agent.md) with 8-step process
 - [x] Rules library (development, docker, k8s, security, error handling, MCP)
 - [x] Validation & Rollback gates
@@ -538,6 +622,14 @@ auto-managed and should not be edited manually.
 - [x] **Security Profiles** — lab/staging/production enforcement tiers (`rules/security_profiles.md`)
 - [x] **Compliance Checklist** — automated machine-verifiable checks at STEP 5.0.5 (`rules/output_checklist.json`)
 - [x] **Environment Context** in `config.json` — explicit `environment_context.type`
+- [x] Requirements Checklist with Contract Check mechanism
+- [x] Mandatory Artifacts Validation in gate check transitions
+- [x] Requirements Traceability Matrix between requirements and tests
+- [x] Namespace separation between framework and project artifacts
+- [x] Template scaffolding and directory validation
+- [x] Optional Refinement Loop step with gap analysis
+- [x] Auto-scoring system integrated in the framework
+- [x] Multi-session orchestration with Agent Orchestrator Guide
 
 ### Phase 2 — Cloud & Advanced Deployments
 - [ ] Cloud Kubernetes support (EKS, GKE, AKS)
